@@ -1,6 +1,6 @@
 {
   "name": "@bats-hardened/bats-assert",
-  "version": "2.2.4",
+  "version": "2.2.5-beta03",
   "description": "Common assertions for Bats",
   "homepage": "https://github.com/bats-core/bats-assert",
   "license": "CC0-1.0",
