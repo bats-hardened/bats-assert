@@ -20,4 +20,4 @@ jobs:
       contents: read
       id-token: write
       security-events: write
-    uses: bats-hardened/.github/.github/workflows/test.yml@v1
+    uses: bats-hardened/.github/.github/workflows/test.yml@44fd251ecb1b4ca6fd2537eaa65be75b9be0395d # v1.1.1-beta01
