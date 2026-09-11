@@ -1,37 +1,126 @@
 name: Release
-on:
-  push: { tags: "v[0-9]+.[0-9]+.[0-9]+*" }
+run-name: Release ${{ github.ref_name }}
 
-permissions: {}
+"on":
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
 jobs:
-  github:
-    permissions: { contents: write }
+  verify-tagged-commit:
+    name: Verify release tag
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-        with: { egress-policy: audit }
-      - uses: actions/checkout@v4
-      # TODO exit this job differently than success if release already exists
-      - name: gh release create
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tagged commit and version
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          # shellcheck disable=SC2086
-          gh release view $tag || \
-            gh release create ${tag/*-*/"$tag" --prerelease} --generate-notes
+          set -euo pipefail
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "Tag $RELEASE_TAG points to $GITHUB_SHA, which is not on origin/$DEFAULT_BRANCH." >&2
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "Release tags must use v<major>.<minor>.<patch> or a SemVer prerelease suffix." >&2
+            exit 1
+          fi
+
+          version="${RELEASE_TAG#v}"
+          package_version="$(node --print 'require("./package.json").version')"
+          if [[ "$version" != "$package_version" ]]; then
+            printf 'Tag version (%s) and package.json version (%s) must match.\n' \
+              "$version" "$package_version" >&2
+            exit 1
+          fi
+
+  test:
+    name: Run tests
+    needs: verify-tagged-commit
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+      security-events: write
+      id-token: write
+
+  publish-npm:
+    name: Publish to npm
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+      - name: Publish package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            npm publish --ignore-scripts --access public --tag next
+          else
+            npm publish --ignore-scripts --access public
+          fi
+
+  create-github-release:
+    name: Create GitHub release
+    needs: publish-npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Package release artifacts
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          mkdir dist
+          npm pack --ignore-scripts --pack-destination dist
+          git archive --format=tar.gz --prefix="bats-assert-${version}/" \
+            --output="dist/bats-assert-${version}.tar.gz" "$GITHUB_SHA"
+          (
+            cd dist
+            sha256sum * > SHA256SUMS
+          )
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          tag: ${{ github.ref_name }}
-
-  npm:
-    permissions: { id-token: write }
-    runs-on: ubuntu-latest
-    steps:
-      - uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
-        with: { egress-policy: audit }
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          release_args=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            release_args+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --verify-tag \
+            --title "Bats assert ${RELEASE_TAG#v}" \
+            --generate-notes \
+            "${release_args[@]}"
