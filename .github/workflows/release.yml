@@ -75,9 +75,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "$RELEASE_TAG" == *-* ]]; then
-            npm publish --ignore-scripts --access public --tag next
+            npm publish --ignore-scripts --tag next
           else
-            npm publish --ignore-scripts --access public
+            npm publish --ignore-scripts
           fi
 
   create-github-release:
