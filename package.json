@@ -6,9 +6,9 @@
   "license": "CC0-1.0",
   "author": "Zoltán Tömböl (https://github.com/ztombol)",
   "contributors": [
-    "Sam Stephenson <sstephenson@gmail.com> (http://sstephenson.us/)",
-    "Jason Karns <jason.karns@gmail.com> (http://jasonkarns.com)",
-    "Mislav Marohnić <mislav.marohnic@gmail.com> (http://mislav.net/)",
+    "Sam Stephenson <sstephenson@gmail.com> (https://sstephenson.us/)",
+    "Jason Karns <jason.karns@gmail.com>",
+    "Mislav Marohnić <mislav.marohnic@gmail.com> (https://mislav.net/)",
     "Tim Pope (https://github.com/tpope)"
   ],
   "repository": {
