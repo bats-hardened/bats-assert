@@ -180,68 +180,80 @@ Did you mean to call \`assert_output\` or \`assert_stderr\`?" |
   local -r stream="${!stream_type}"
 
   # Handle options.
-  if (( $# == 0 )); then
+  if (($# == 0)); then
     is_mode_nonempty=1
   fi
 
-  while (( $# > 0 )); do
+  while (($# > 0)); do
     case "$1" in
-    -p|--partial) is_mode_partial=1; shift ;;
-    -e|--regexp) is_mode_regexp=1; shift ;;
-    -|--stdin) use_stdin=1; shift ;;
-    --) shift; break ;;
-    *) break ;;
+      -p | --partial)
+        is_mode_partial=1
+        shift
+        ;;
+      -e | --regexp)
+        is_mode_regexp=1
+        shift
+        ;;
+      - | --stdin)
+        use_stdin=1
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *) break ;;
     esac
   done
 
-  if (( is_mode_partial )) && (( is_mode_regexp )); then
-    echo "\`--partial' and \`--regexp' are mutually exclusive" \
-    | batslib_decorate "ERROR: ${caller}" \
-    | fail
+  if ((is_mode_partial)) && ((is_mode_regexp)); then
+    echo "\`--partial' and \`--regexp' are mutually exclusive" |
+      batslib_decorate "ERROR: ${caller}" |
+      fail
     return $?
   fi
 
   # Arguments.
   local expected
-  if (( use_stdin )); then
+  if ((use_stdin)); then
     expected="$(cat -)"
   else
     expected="${1-}"
   fi
 
   # Matching.
-  if (( is_mode_nonempty )); then
+  if ((is_mode_nonempty)); then
     if [ -z "$stream" ]; then
-      echo "expected non-empty $stream_type, but $stream_type was empty" \
-      | batslib_decorate "no $stream_type" \
-      | fail
+      echo "expected non-empty $stream_type, but $stream_type was empty" |
+        batslib_decorate "no $stream_type" |
+        fail
     fi
-  elif (( is_mode_regexp )); then
+  elif ((is_mode_regexp)); then
     # shellcheck disable=2319
     if ! __check_is_valid_regex "$expected" "$caller"; then
       return 1
     elif ! [[ $stream =~ $expected ]]; then
       batslib_print_kv_single_or_multi 6 \
-      'regexp'  "$expected" \
-      "$stream_type" "$stream" \
-      | batslib_decorate "regular expression does not match $stream_type" \
-      | fail
+        'regexp' "$expected" \
+        "$stream_type" "$stream" |
+        batslib_decorate "regular expression does not match $stream_type" |
+        fail
     fi
-  elif (( is_mode_partial )); then
+  elif ((is_mode_partial)); then
     if [[ $stream != *"$expected"* ]]; then
       batslib_print_kv_single_or_multi 9 \
-      'substring' "$expected" \
-      "$stream_type"    "$stream" \
-      | batslib_decorate "$stream_type does not contain substring" \
-      | fail
+        'substring' "$expected" \
+        "$stream_type" "$stream" |
+        batslib_decorate "$stream_type does not contain substring" |
+        fail
     fi
   else
     if [[ $stream != "$expected" ]]; then
       batslib_print_kv_single_or_multi 8 \
-      'expected' "$expected" \
-      'actual'   "$stream" \
-      | batslib_decorate "$stream_type differs" \
-      | fail
+        'expected' "$expected" \
+        'actual' "$stream" |
+        batslib_decorate "$stream_type differs" |
+        fail
     fi
   fi
 }
