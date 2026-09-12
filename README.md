@@ -300,8 +300,7 @@ When used, the assertion fails if the _[extended regular expression]_ does not m
 [extended regular expression]: https://en.wikibooks.org/wiki/Regular_Expressions/POSIX-Extended_Regular_Expressions
 
 > [!IMPORTANT]  
-> Bash [doesn't support](https://stackoverflow.com/a/48898886/5432315) certain parts of regular expressions you may
-> be used to:
+> Bash [doesn't support](https://stackoverflow.com/a/48898886) certain parts of regular expressions you may be used to:
 >
 > - `\d` `\D` `\s` `\S` `\w` `\W` — these can be replaced with POSIX character class equivalents `[[:digit:]]`,
 >   `[^[:digit:]]`, `[[:space:]]`, `[^[:space:]]`, `[_[:alnum:]]`, and `[^_[:alnum:]]`, respectively. (Notice the
