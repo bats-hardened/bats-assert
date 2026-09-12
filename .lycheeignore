@@ -1,0 +1,4 @@
+# Stack Overflow rejects lychee lookup
+^https://stackoverflow.com/a/.*$
+# npmjs.com rejects lychee lookup
+^https://www.npmjs.com/package/.*$
